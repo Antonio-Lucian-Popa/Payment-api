@@ -43,6 +43,23 @@ NODE_ENV=development
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
 ```
 
+### 2.1 Configurare pentru server remote
+
+Dacă urci serviciul pe `novabytecode.ro`, actualizează `.env` astfel:
+
+```env
+NODE_ENV=production
+PORT=3000
+ALLOWED_ORIGINS=https://novabytecode.ro,https://www.novabytecode.ro
+STRIPE_WEBHOOK_SECRET=whsec_... # copiat din Stripe Dashboard
+```
+
+Webhook-ul public pe care îl configurezi în Stripe va fi:
+
+```text
+https://novabytecode.ro/api/payment/webhook
+```
+
 ### 3. Pornire Server
 
 ```bash
@@ -178,6 +195,76 @@ curl -X POST http://localhost:3000/api/payment/checkout \
 ```bash
 curl http://localhost:3000/api/payment/status/cs_test_a1b2c3d4e5f6
 ```
+
+---
+
+## 🐳 DEPLOY CU DOCKER PE SERVER
+
+### 1. Build și start
+
+```bash
+cd /home/asu/Desktop/workspace/payment-api
+docker compose up -d --build
+```
+
+`docker-compose.yml` este aliniat la modelul tău existent și atașează serviciul la rețeaua Docker externă `nova-net`.
+
+### 2. Verificare container
+
+```bash
+docker compose ps
+docker compose logs -f payment-api
+docker exec payment-api wget -qO- http://127.0.0.1:3000/api/payment/health
+```
+
+### 3. Config Nginx pentru domeniul tău
+
+În server block-ul `listen 443 ssl;` adaugă:
+
+```nginx
+# --------------------
+# PAYMENT API
+# --------------------
+location /api/payment/ {
+  proxy_pass http://payment-api:3000/api/payment/;
+  proxy_http_version 1.1;
+
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Dacă Nginx rulează în alt `docker-compose`, atunci containerul `payment-api` și containerul Nginx trebuie conectate la aceeași rețea Docker externă. Altfel, hostname-ul `payment-api` nu va fi rezolvat.
+
+În cazul tău, rețeaua comună este chiar `nova-net`, deci nu mai trebuie altă rețea nouă.
+
+### 4. Reload Nginx
+
+```bash
+nginx -t
+systemctl reload nginx
+```
+
+### 5. Endpoint-urile publice rezultate
+
+```text
+https://novabytecode.ro/api/payment/health
+https://novabytecode.ro/api/payment/checkout
+https://novabytecode.ro/api/payment/status/:sessionId
+https://novabytecode.ro/api/payment/webhook
+```
+
+### 6. Configurare Stripe Dashboard
+
+- Endpoint URL: `https://novabytecode.ro/api/payment/webhook`
+- Events recomandate:
+  - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
+  - `checkout.session.async_payment_failed`
+
+După creare, copiază `Signing secret` și pune-l în `.env` la `STRIPE_WEBHOOK_SECRET`.
 
 ---
 

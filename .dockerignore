@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.vscode
+.idea
+docker-compose*
+README.md
+SETUP.md
+GETTING_STARTED.md
+START_HERE.md
+CHECKLIST.md
+EXAMPLES.js

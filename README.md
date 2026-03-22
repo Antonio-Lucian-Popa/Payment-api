@@ -27,6 +27,9 @@ payment-api/
 │   │   └── stripeService.js    # Integrare Stripe
 │   └── middleware/
 │       └── errorHandler.js     # Middleware pentru erori
+├── Dockerfile                  # Imagine Docker pentru deploy
+├── docker-compose.yml          # Rulare ca serviciu pe server
+├── .dockerignore               # Fișiere excluse din build context
 ├── .env.example                # Template pentru variabile de mediu
 ├── package.json
 └── README.md
@@ -50,6 +53,49 @@ cp .env.example .env
 ```bash
 npm run dev  # Modul development cu nodemon
 npm start    # Modul producție
+```
+
+## 🐳 Deploy cu Docker
+
+1. **Configurează variabilele de mediu:**
+```bash
+cp .env.example .env
+```
+
+2. **Actualizează `.env` pentru server:**
+```env
+NODE_ENV=production
+PORT=3000
+ALLOWED_ORIGINS=https://novabytecode.ro,https://www.novabytecode.ro
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+3. **Build + start container:**
+```bash
+docker compose up -d --build
+```
+
+4. **Testează serviciul:**
+```bash
+curl http://localhost:3000/api/payment/health
+```
+
+5. **Proxy prin Nginx:**
+```nginx
+location /api/payment/ {
+  proxy_pass http://payment-api:3000/api/payment/;
+  proxy_http_version 1.1;
+
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+6. **Webhook Stripe pe production:**
+```text
+https://novabytecode.ro/api/payment/webhook
 ```
 
 ## 📚 API Endpoints
