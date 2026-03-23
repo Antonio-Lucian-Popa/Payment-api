@@ -32,6 +32,7 @@ const router = express.Router();
  * }
  */
 router.post('/checkout', paymentController.createCheckout);
+router.post('/checkout/subscription', paymentController.createMonthlySubscriptionCheckout);
 
 /**
  * POST /api/payment/webhook

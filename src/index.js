@@ -104,6 +104,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: [
       'POST /api/payment/checkout - Crează sesiune checkout',
+      'POST /api/payment/checkout/subscription - Crează abonament lunar',
       'POST /api/payment/webhook - Primește webhook-uri Stripe',
       'GET /api/payment/status/:sessionId - Obține status plată',
       'GET /api/payment/health - Health check',
@@ -150,6 +151,7 @@ app.listen(PORT, () => {
 📚 API Documentation:
   - GET /                        - Root endpoint & documentation
   - POST /api/payment/checkout   - Create checkout session
+  - POST /api/payment/checkout/subscription - Create monthly subscription
   - POST /api/payment/webhook    - Stripe webhook handler
   - GET /api/payment/status/:id  - Check payment status
   - GET /api/payment/health      - Health check

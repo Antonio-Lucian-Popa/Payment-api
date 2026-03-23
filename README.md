@@ -7,6 +7,7 @@ Backend API generic pentru procesarea plăților online utilizând Stripe Checko
 - ✅ API generic refolosibil
 - ✅ Integrare Stripe Checkout
 - ✅ Procesare de comenzi cu multiple produse
+- ✅ Suport pentru abonamente lunare prin Stripe Checkout
 - ✅ Webhook handling pentru confirmări
 - ✅ CORS enabled pentru integrare în mai multe aplicații
 - ✅ Error handling robust
@@ -119,7 +120,8 @@ Creeaza o sesiune de checkout Stripe.
   ],
   "successUrl": "https://your-app.com/success",
   "cancelUrl": "https://your-app.com/cancel",
-  "clientId": "unique-client-identifier"
+  "clientId": "unique-client-identifier",
+  "billingType": "one_time"
 }
 ```
 
@@ -132,12 +134,35 @@ Creeaza o sesiune de checkout Stripe.
 }
 ```
 
-### 2. Webhook Handler
+### 2. Monthly Subscription Checkout
+**POST** `/api/payment/checkout/subscription`
+
+Creează o sesiune Stripe Checkout în mod `subscription` cu recurență lunară.
+
+**Request Body:**
+```json
+{
+  "items": [
+    {
+      "name": "Plan Pro",
+      "description": "Abonament lunar",
+      "price": 4900,
+      "currency": "ron"
+    }
+  ],
+  "successUrl": "https://your-app.com/subscription-success",
+  "cancelUrl": "https://your-app.com/subscription-cancel",
+  "clientId": "unique-client-identifier",
+  "customerEmail": "client@example.com"
+}
+```
+
+### 3. Webhook Handler
 **POST** `/api/payment/webhook`
 
 Procesează evenimentele Stripe (confirmări de plată, etc).
 
-### 3. Payment Status
+### 4. Payment Status
 **GET** `/api/payment/status/:sessionId`
 
 Verifică statusul unei sesiuni de plată.
@@ -198,6 +223,7 @@ const data = await response.json();
 ## 📝 Note
 
 - API este generic și nu stochează date în bază de date - toată logica este în Stripe
+- Pentru abonamente lunare poți folosi `billingType: "monthly"` pe `/checkout` sau endpoint-ul dedicat `/checkout/subscription`
 - Webhook-ul trebuie configurat în Stripe Dashboard
 - Sumele sunt în cea mai mică unitate (bani pentru RON, cents pentru USD)
 
