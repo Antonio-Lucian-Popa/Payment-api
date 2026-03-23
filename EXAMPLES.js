@@ -170,6 +170,35 @@ const PaymentCheckout = () => {
 export default PaymentCheckout;
 */
 
+
+// ==================== EXEMPLU 4: ABONAMENT LUNAR ====================
+
+/*
+async function createMonthlySubscription() {
+  const response = await fetch('http://localhost:3000/api/payment/checkout/subscription', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: [
+        {
+          name: 'Plan Premium',
+          description: 'Acces complet lunar',
+          price: 9900,
+          currency: 'ron'
+        }
+      ],
+      successUrl: 'https://app.example.com/subscription/success',
+      cancelUrl: 'https://app.example.com/subscription/cancel',
+      clientId: 'user-123',
+      customerEmail: 'client@example.com'
+    })
+  });
+
+  const data = await response.json();
+  window.location.href = data.checkoutUrl;
+}
+*/
+
 // ==================== EXEMPLU 3: BACKEND INTEGRATION (Node.js) ====================
 
 /*

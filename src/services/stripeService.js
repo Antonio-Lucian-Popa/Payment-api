@@ -7,100 +7,132 @@
 
 const stripe = require('../config/stripe');
 
+function buildLineItems(items, billingType) {
+  return items.map(item => {
+    const priceData = {
+      currency: item.currency.toLowerCase(),
+      product_data: {
+        name: item.name,
+        description: item.description || 'Produs',
+      },
+      unit_amount: item.price,
+    };
+
+    if (billingType === 'monthly') {
+      priceData.recurring = {
+        interval: 'month',
+      };
+    }
+
+    return {
+      price_data: priceData,
+      quantity: billingType === 'monthly' ? 1 : (item.quantity || 1),
+    };
+  });
+}
+
 /**
  * Creează o sesiune de checkout Stripe
  * 
- * @param {Array} items - Lista de produse de cumpărat
- *   Fiecare item trebuie să aibă: name, description, price (în bani), currency, quantity
- * @param {string} successUrl - URL-ul către care merge userul după plată reușită
- * @param {string} cancelUrl - URL-ul către care merge userul dacă anulează plata
- * @param {string} clientId - ID-ul unic al clientului (optional, pentru tracking)
+ * @param {Object} payload - configurarea checkout-ului
  * @returns {Promise} Promisiune cu datele sesiunii Stripe
  */
-async function createCheckoutSession(items, successUrl, cancelUrl, clientId = null) {
+async function createCheckoutSession({
+  items,
+  successUrl,
+  cancelUrl,
+  clientId = null,
+  billingType = 'one_time',
+  customerEmail = null,
+}) {
   try {
-    // Transformă itemele din format generic în format Stripe line_items
-    // Stripe necesită format specific pentru checkout
-    const lineItems = items.map(item => ({
-      price_data: {
-        currency: item.currency.toLowerCase(), // ISO 4217 currency code (ron, usd, eur)
-        product_data: {
-          name: item.name,
-          description: item.description || 'Produs', // Descriere sau valoare default
-          // Opțional: imagini
-          // images: [item.image] // URL-ul imaginii produsului
-        },
-        unit_amount: item.price, // Preț în cea mai mică unitate (bani pentru RON)
-      },
-      quantity: item.quantity || 1, // Cantitate implicită 1
-    }));
+    const lineItems = buildLineItems(items, billingType);
+    const isSubscription = billingType === 'monthly';
 
-    // Creează sesiunea de checkout cu Stripe
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'], // Acceptă plăți cu card
+      payment_method_types: ['card'],
       line_items: lineItems,
-      mode: 'payment', // Mod payment (o dată) vs subscription
+      mode: isSubscription ? 'subscription' : 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
-      // Metadate pentru tracking (opțional)
+      customer_email: customerEmail || undefined,
       metadata: {
         clientId: clientId || 'unknown',
+        billingType,
         createdAt: new Date().toISOString(),
       },
+      subscription_data: isSubscription
+        ? {
+            metadata: {
+              clientId: clientId || 'unknown',
+              billingType,
+            },
+          }
+        : undefined,
     });
 
     return session;
   } catch (error) {
-    // Înregistrează eroarea pentru debug
     console.error('Eroare la crearea sesiei de checkout:', error);
-    throw error; // Re-throw eroarea pentru a fi tratată în controller
+    throw error;
   }
 }
 
-/**
- * Prelucrează evenimentele webhook Stripe
- * 
- * @param {string} rawBody - Body-ul raw al requestului (pentru verificare semnăturii)
- * @param {string} signature - Signature din header-ul Stripe
- * @returns {Promise} Evenimentul Stripe procesat
- */
 async function handleWebhook(rawBody, signature) {
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    
-    // Verifică autenticitatea evenimentului Stripe folosind semnătura
     const event = stripe.webhooks.constructEvent(
       rawBody,
       signature,
       webhookSecret
     );
 
-    // Procesează diferite tipuri de evenimente
     switch (event.type) {
-      case 'checkout.session.completed':
-        // Sesiunea de checkout s-a completat cu succes (plată confirmată)
+      case 'checkout.session.completed': {
         const session = event.data.object;
-        console.log('Plată confirmată - Sesiune ID:', session.id);
-        // Aici poți integra cu baza de date pentru a marca comanda ca plătită
+        const billingType = session.metadata?.billingType || 'one_time';
+        console.log(
+          billingType === 'monthly'
+            ? 'Abonament activat - Sesiune ID:'
+            : 'Plată confirmată - Sesiune ID:',
+          session.id
+        );
+        break;
+      }
+
+      case 'customer.subscription.created':
+        console.log('Subscription creat:', event.data.object.id);
+        break;
+
+      case 'customer.subscription.updated':
+        console.log('Subscription actualizat:', event.data.object.id);
+        break;
+
+      case 'customer.subscription.deleted':
+        console.log('Subscription anulat:', event.data.object.id);
         break;
 
       case 'checkout.session.async_payment_succeeded':
-        // Plata asincronă a reușit
         console.log('Plată asincronă reușită');
         break;
 
       case 'checkout.session.async_payment_failed':
-        // Plata asincronă a eșuat
         console.log('Plată asincronă eșuată');
         break;
 
+      case 'invoice.paid':
+        console.log('Factură plătită:', event.data.object.id);
+        break;
+
+      case 'invoice.payment_failed':
+        console.log('Plata facturii a eșuat:', event.data.object.id);
+        break;
+
       case 'charge.failed':
-        // Taxa a eșuat
         console.log('Taxa eșuată:', event.data.object.id);
         break;
 
       default:
-        // Eveniment necunoscut
         console.log('Eveniment neașteptat:', event.type);
     }
 
@@ -111,16 +143,10 @@ async function handleWebhook(rawBody, signature) {
   }
 }
 
-/**
- * Obține statusul unei sesiuni de checkout
- * 
- * @param {string} sessionId - ID-ul sesiunii de checkout
- * @returns {Promise} Obiectul sesiunii cu detalii complete
- */
 async function getSessionStatus(sessionId) {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['payment_intent', 'line_items'], // Include detalii suplimentare
+      expand: ['payment_intent', 'line_items', 'subscription'],
     });
     return session;
   } catch (error) {
@@ -129,12 +155,6 @@ async function getSessionStatus(sessionId) {
   }
 }
 
-/**
- * Obține detalii despre un payment intent
- * 
- * @param {string} paymentIntentId - ID-ul payment intent
- * @returns {Promise} Obiectul payment intent
- */
 async function getPaymentIntentDetails(paymentIntentId) {
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -145,7 +165,6 @@ async function getPaymentIntentDetails(paymentIntentId) {
   }
 }
 
-// Exportă toate funcțiile serviciului
 module.exports = {
   createCheckoutSession,
   handleWebhook,
