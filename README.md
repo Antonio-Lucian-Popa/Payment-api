@@ -40,7 +40,7 @@ payment-api/
 
 1. **Clonează proiectul:**
 ```bash
-cd /home/asu/Desktop/workspace/payment-api
+cd /home/user/Desktop/workspace/payment-api
 npm install
 ```
 
