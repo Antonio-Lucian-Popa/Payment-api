@@ -2,6 +2,8 @@
 
 Backend API generic pentru procesarea plăților online utilizând Stripe Checkout. Poate fi integrat în orice aplicație.
 
+> 📘 **Integrare & referință API completă:** vezi [`API.md`](./API.md) — toate endpoint-urile, autentificarea prin `x-api-key`, erorile și exemple de integrare frontend (vanilla JS, React, curl).
+
 ## 🎯 Caracteristici
 
 - ✅ API generic refolosibil
