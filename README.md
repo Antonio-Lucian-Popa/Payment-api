@@ -11,6 +11,8 @@ Backend API generic pentru procesarea plăților online utilizând Stripe Checko
 - ✅ Webhook handling pentru confirmări
 - ✅ CORS enabled pentru integrare în mai multe aplicații
 - ✅ Error handling robust
+- ✅ Securitate: Helmet, rate limiting și API key opțional
+- ✅ Teste automate (Jest + Supertest)
 
 ## 📁 Structura Proiectului
 
@@ -27,7 +29,10 @@ payment-api/
 │   ├── services/
 │   │   └── stripeService.js    # Integrare Stripe
 │   └── middleware/
-│       └── errorHandler.js     # Middleware pentru erori
+│       ├── errorHandler.js     # Middleware pentru erori
+│       └── apiKey.js           # Autentificare prin API key (opțional)
+├── tests/
+│   └── payment.test.js         # Teste de bază
 ├── Dockerfile                  # Imagine Docker pentru deploy
 ├── docker-compose.yml          # Rulare ca serviciu pe server
 ├── .dockerignore               # Fișiere excluse din build context
@@ -56,6 +61,22 @@ npm run dev  # Modul development cu nodemon
 npm start    # Modul producție
 ```
 
+## 🔐 Securitate
+
+- **Helmet** setează automat headere HTTP de securitate.
+- **Rate limiting** pe `/api/payment/*` (configurabil prin `RATE_LIMIT_WINDOW_MINUTES` și `RATE_LIMIT_MAX_REQUESTS`).
+- **API key opțional**: dacă setezi `API_KEY` în `.env`, request-urile către `/checkout`, `/checkout/subscription` și `/status/:id` trebuie să includă header-ul:
+  ```
+  x-api-key: <valoarea din API_KEY>
+  ```
+  Rutele `/health` și `/webhook` rămân publice (webhook-ul este autentificat prin semnătura Stripe). Dacă `API_KEY` nu este setat, autentificarea este dezactivată.
+
+## 🧪 Teste
+
+```bash
+npm test
+```
+
 ## 🐳 Deploy cu Docker
 
 1. **Configurează variabilele de mediu:**
@@ -69,6 +90,10 @@ NODE_ENV=production
 PORT=3000
 ALLOWED_ORIGINS=https://novabytecode.ro,https://www.novabytecode.ro
 STRIPE_WEBHOOK_SECRET=whsec_...
+# Opțional - protejează endpoint-urile de plată
+API_KEY=o-cheie-secreta-partajata
+RATE_LIMIT_WINDOW_MINUTES=15
+RATE_LIMIT_MAX_REQUESTS=100
 ```
 
 3. **Build + start container:**

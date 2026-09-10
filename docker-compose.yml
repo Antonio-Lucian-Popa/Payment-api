@@ -5,8 +5,9 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    # Numele containerului folosit și în upstream-ul Nginx, dacă sunt pe aceeași rețea Docker
-    container_name: payment-api
+    # Nume de container configurabil (evită coliziuni când rulezi mai multe instanțe).
+    # Suprascrie cu COMPOSE_PROJECT_NAME sau schimbă aici după nevoie.
+    container_name: ${CONTAINER_NAME:-payment-api}
 
     # Pornește containerul automat după restart de server sau crash
     restart: unless-stopped
@@ -20,15 +21,17 @@ services:
       NODE_ENV: production
       PORT: 3000
 
-    # Conectează serviciul la rețeaua Docker comună a serverului
+    # Expune portul către host (configurabil prin HOST_PORT, implicit 3000).
+    # Pentru integrare doar între containere (ex. în spatele unui Nginx), poți
+    # înlocui `ports` cu `expose: ["3000"]`.
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+
+    # Rețeaua serviciului
     networks:
-      - nova-net
+      - payment-net
 
-    # Expune portul către alte containere din aceeași rețea Docker
-    expose:
-      - "3000"
-
-    # Health check simplu pe endpoint-ul intern al API-ului
+    # Health check pe endpoint-ul intern al API-ului
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/payment/health').then((res) => { process.exit(res.ok ? 0 : 1); }).catch(() => process.exit(1));"]
       interval: 30s
@@ -37,5 +40,9 @@ services:
       start_period: 15s
 
 networks:
-  nova-net:
-    external: true
+  payment-net:
+    driver: bridge
+    # Pentru a atașa serviciul la o rețea Docker externă partajată (ex. un
+    # reverse-proxy comun), setează `external: true` și numele rețelei:
+    #   external: true
+    #   name: nova-net

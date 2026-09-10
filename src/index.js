@@ -16,8 +16,11 @@ const express = require('express');
 // CORS - permite request-uri din alte domenii (necesare pentru integrare în mai multe app-uri)
 const cors = require('cors');
 
-// Body Parser - parsează request body-ul
-const bodyParser = require('body-parser');
+// Helmet - setează headere HTTP de securitate
+const helmet = require('helmet');
+
+// Rate limiting - protejează împotriva abuzului / brute-force
+const rateLimit = require('express-rate-limit');
 
 // Import rute de plată
 const paymentRoutes = require('./routes/payment');
@@ -36,31 +39,19 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // ==================== MIDDLEWARE ====================
 
-// MIDDLEWARE BODY PARSER (pentru webhook-uri Stripe)
-// IMPORTANT: Webhook-ul Stripe necesită body RAW pentru a verifica semnătura
-// Deci trebuie să stocăm body-ul raw înainte ca Express să-l parseze
+// SECURITATE - headere HTTP sigure (Helmet)
+app.use(helmet());
 
-// Middleware custom pentru stocarea body raw
-app.use((req, res, next) => {
-  if (req.path === '/api/payment/webhook') {
-    // Pentru webhook, salvează body-ul raw
-    let data = '';
-    req.on('data', chunk => {
-      data += chunk.toString();
-    });
-    req.on('end', () => {
-      req.rawBody = data;
-      next();
-    });
-  } else {
-    // Pentru alte rute, continuă normal
-    next();
-  }
-});
+// WEBHOOK RAW BODY (pentru verificarea semnăturii Stripe)
+// IMPORTANT: Webhook-ul Stripe necesită body RAW (Buffer) pentru a verifica
+// semnătura. Montăm express.raw DOAR pe ruta de webhook, ÎNAINTE de parser-ul
+// JSON. express.raw setează req._body = true, deci parser-ul JSON de mai jos
+// va sări automat peste această rută.
+app.use('/api/payment/webhook', express.raw({ type: '*/*' }));
 
-// Parsează JSON din request body (pentru rute normale)
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Parsează JSON din request body (pentru rutele normale)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // CORS - Configurare pentru a permite request-uri din alte domenii
 // Acest lucru este ESENȚIAL pentru integrare în mai multe aplicații
@@ -114,9 +105,29 @@ app.get('/', (req, res) => {
   });
 });
 
+// RATE LIMITING pentru rutele de plată
+// Protejează împotriva abuzului. Configurabil prin variabile de mediu.
+const rateLimitWindowMinutes = parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES, 10) || 15;
+const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100;
+
+const paymentLimiter = rateLimit({
+  windowMs: rateLimitWindowMinutes * 60 * 1000,
+  max: rateLimitMaxRequests,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Webhook-urile Stripe pot fi frecvente și sunt autentificate prin semnătură,
+  // deci le excludem din rate limiting.
+  skip: (req) => req.path === '/webhook',
+  message: {
+    success: false,
+    error: 'Prea multe request-uri. Te rog încearcă din nou mai târziu.',
+    errorType: 'RATE_LIMIT_EXCEEDED',
+  },
+});
+
 // RUTE DE PLATĂ
 // Toate rutele de plată sunt prefixate cu /api/payment
-app.use('/api/payment', paymentRoutes);
+app.use('/api/payment', paymentLimiter, paymentRoutes);
 
 // ==================== 404 HANDLER ====================
 
@@ -137,9 +148,11 @@ app.use(errorHandler);
 
 // ==================== START SERVER ====================
 
-// Pornește serverul și asculță pe port-ul configurat
-app.listen(PORT, () => {
-  console.log(`
+// Pornește serverul și asculță pe port-ul configurat.
+// În timpul testelor (NODE_ENV=test) NU pornim serverul - importăm doar `app`.
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`
 ╔════════════════════════════════════════════════════════╗
 ║        💳 PAYMENT API - STRIPE CHECKOUT SERVICE        ║
 ╚════════════════════════════════════════════════════════╝
@@ -167,7 +180,8 @@ app.listen(PORT, () => {
 
 ╔════════════════════════════════════════════════════════╗
   `);
-});
+  });
+}
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {

@@ -7,6 +7,7 @@
 
 const express = require('express');
 const paymentController = require('../controllers/paymentController');
+const apiKeyAuth = require('../middleware/apiKey');
 
 // Creează router-ul Express
 const router = express.Router();
@@ -31,8 +32,8 @@ const router = express.Router();
  *   "clientId": "user123"
  * }
  */
-router.post('/checkout', paymentController.createCheckout);
-router.post('/checkout/subscription', paymentController.createMonthlySubscriptionCheckout);
+router.post('/checkout', apiKeyAuth, paymentController.createCheckout);
+router.post('/checkout/subscription', apiKeyAuth, paymentController.createMonthlySubscriptionCheckout);
 
 /**
  * POST /api/payment/webhook
@@ -65,7 +66,7 @@ router.post('/webhook', paymentController.handleWebhook);
  *   }
  * }
  */
-router.get('/status/:sessionId', paymentController.getCheckoutStatus);
+router.get('/status/:sessionId', apiKeyAuth, paymentController.getCheckoutStatus);
 
 /**
  * GET /api/payment/health
