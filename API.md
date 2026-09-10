@@ -204,6 +204,75 @@ Evenimente tratate: `checkout.session.completed`, `customer.subscription.created
 
 ---
 
+## 📡 Webhook forwarding către backend-ul tău
+
+Payment API este fără stare — nu scrie în DB și nu trimite email-uri. Ca aplicația ta să reacționeze la plăți, serviciul poate **retransmite** evenimentele Stripe verificate către unul sau mai multe backend-uri ale tale.
+
+**Activare** — setează în `.env`:
+
+```env
+WEBHOOK_FORWARD_URL=https://app1.ro/webhooks/payments,https://app2.ro/hooks/stripe
+WEBHOOK_FORWARD_SECRET=un-secret-partajat        # opțional, recomandat
+WEBHOOK_FORWARD_EVENTS=checkout.session.completed,invoice.paid  # opțional; gol = toate
+WEBHOOK_FORWARD_TIMEOUT_MS=5000
+WEBHOOK_FORWARD_RETRIES=2
+```
+
+Dacă `WEBHOOK_FORWARD_URL` este gol, forwarding-ul este dezactivat.
+
+**Comportament**
+- Retransmiterea are loc **doar după** verificarea semnăturii Stripe.
+- Este **non-blocantă** (fire-and-forget) — nu întârzie răspunsul `200` către Stripe.
+- Reîncearcă la eșec cu backoff exponențial (`WEBHOOK_FORWARD_RETRIES`), cu timeout per request.
+- Trimite în paralel către toate URL-urile configurate.
+
+**Ce primește backend-ul tău** — un `POST` cu:
+
+| Header | Descriere |
+|--------|-----------|
+| `Content-Type` | `application/json` |
+| `x-payment-event` | Tipul evenimentului (ex: `checkout.session.completed`) |
+| `x-payment-event-id` | ID-ul evenimentului Stripe (`evt_...`) — util pentru idempotență |
+| `x-payment-signature` | `sha256=<hmac>` peste body (doar dacă `WEBHOOK_FORWARD_SECRET` e setat) |
+
+Body:
+```json
+{
+  "id": "evt_...",
+  "type": "checkout.session.completed",
+  "created": 1690000000,
+  "data": { "object": { "...": "obiectul Stripe relevant" } }
+}
+```
+
+**Verificarea semnăturii la tine în backend (Node.js)**
+```js
+const crypto = require('crypto');
+
+app.post('/webhooks/payments', express.json(), (req, res) => {
+  const secret = process.env.WEBHOOK_FORWARD_SECRET;
+  const received = req.headers['x-payment-signature'];
+  const expected =
+    'sha256=' + crypto.createHmac('sha256', secret)
+      .update(JSON.stringify(req.body)).digest('hex');
+
+  if (received !== expected) {
+    return res.status(401).json({ error: 'Semnătură invalidă' });
+  }
+
+  // Idempotență: ignoră dacă ai procesat deja req.headers['x-payment-event-id']
+  if (req.body.type === 'checkout.session.completed') {
+    // marchează comanda ca plătită, trimite email, generează factura...
+  }
+
+  res.json({ received: true });
+});
+```
+
+> ℹ️ Verificarea recalculează HMAC peste `JSON.stringify(req.body)`. Pentru semnătură criptografic exactă (fără reserializare), verifică peste raw body — dar în practică `JSON.stringify` al aceluiași obiect e suficient dacă ambele părți folosesc Node/JSON standard.
+
+---
+
 ### `GET /api/payment/health`
 
 ```json
