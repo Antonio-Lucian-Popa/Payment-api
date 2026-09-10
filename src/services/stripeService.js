@@ -6,6 +6,7 @@
  */
 
 const stripe = require('../config/stripe');
+const webhookForwarder = require('./webhookForwarder');
 
 function buildLineItems(items, billingType) {
   return items.map(item => {
@@ -135,6 +136,10 @@ async function handleWebhook(rawBody, signature) {
       default:
         console.log('Eveniment neașteptat:', event.type);
     }
+
+    // Retransmite evenimentul către backend-urile consumatoare (dacă e configurat).
+    // Fire-and-forget: nu blochează răspunsul 200 către Stripe.
+    webhookForwarder.forwardEvent(event);
 
     return event;
   } catch (error) {

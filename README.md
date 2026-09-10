@@ -2,6 +2,8 @@
 
 Backend API generic pentru procesarea plăților online utilizând Stripe Checkout. Poate fi integrat în orice aplicație.
 
+> 📘 **Integrare & referință API completă:** vezi [`API.md`](./API.md) — toate endpoint-urile, autentificarea prin `x-api-key`, erorile și exemple de integrare frontend (vanilla JS, React, curl).
+
 ## 🎯 Caracteristici
 
 - ✅ API generic refolosibil
@@ -9,6 +11,7 @@ Backend API generic pentru procesarea plăților online utilizând Stripe Checko
 - ✅ Procesare de comenzi cu multiple produse
 - ✅ Suport pentru abonamente lunare prin Stripe Checkout
 - ✅ Webhook handling pentru confirmări
+- ✅ Webhook forwarding către backend-urile tale (cu semnătură HMAC)
 - ✅ CORS enabled pentru integrare în mai multe aplicații
 - ✅ Error handling robust
 - ✅ Securitate: Helmet, rate limiting și API key opțional
@@ -27,7 +30,8 @@ payment-api/
 │   ├── controllers/
 │   │   └── paymentController.js # Logica pentru plăți
 │   ├── services/
-│   │   └── stripeService.js    # Integrare Stripe
+│   │   ├── stripeService.js    # Integrare Stripe
+│   │   └── webhookForwarder.js # Retransmite evenimente către backend-urile tale
 │   └── middleware/
 │       ├── errorHandler.js     # Middleware pentru erori
 │       └── apiKey.js           # Autentificare prin API key (opțional)
