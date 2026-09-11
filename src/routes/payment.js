@@ -45,6 +45,14 @@ router.post('/checkout/subscription', apiKeyAuth, paymentController.createMonthl
 router.post('/portal', apiKeyAuth, paymentController.createPortalSession);
 
 /**
+ * POST /api/payment/subscription/coupon
+ * Aplică N luni gratis pe un abonament existent (recompensă referral/loialitate).
+ *
+ * Body: { subscriptionId, months, name? }
+ */
+router.post('/subscription/coupon', apiKeyAuth, paymentController.applySubscriptionCoupon);
+
+/**
  * POST /api/payment/webhook
  * Primește evenimentele Stripe
  * 

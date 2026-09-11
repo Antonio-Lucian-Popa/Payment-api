@@ -171,6 +171,35 @@ async function createPortalSession({ customerId, returnUrl }) {
   }
 }
 
+/**
+ * Grants N free months on an existing subscription by creating a 100%-off
+ * repeating coupon and applying it. Generic — a consumer app uses this for
+ * loyalty/referral rewards without embedding Stripe.
+ *
+ * @param {Object} payload
+ * @param {string} payload.subscriptionId - Stripe subscription id (sub_...)
+ * @param {number} payload.months - number of free months (>= 1)
+ * @param {string} [payload.name] - human label for the coupon
+ * @returns {Promise<{couponId: string, subscriptionId: string}>}
+ */
+async function applySubscriptionCoupon({ subscriptionId, months, name }) {
+  try {
+    const coupon = await stripe.coupons.create({
+      percent_off: 100,
+      duration: 'repeating',
+      duration_in_months: months,
+      name: name || `Reward: ${months} luni gratis`,
+    });
+    const subscription = await stripe.subscriptions.update(subscriptionId, {
+      coupon: coupon.id,
+    });
+    return { couponId: coupon.id, subscriptionId: subscription.id };
+  } catch (error) {
+    console.error('Eroare la aplicarea cuponului pe abonament:', error);
+    throw error;
+  }
+}
+
 async function getSessionStatus(sessionId) {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -196,6 +225,7 @@ async function getPaymentIntentDetails(paymentIntentId) {
 module.exports = {
   createCheckoutSession,
   createPortalSession,
+  applySubscriptionCoupon,
   handleWebhook,
   getSessionStatus,
   getPaymentIntentDetails,

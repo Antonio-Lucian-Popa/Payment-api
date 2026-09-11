@@ -13,6 +13,7 @@ process.env.NODE_ENV = 'test';
 jest.mock('../src/services/stripeService', () => ({
   createCheckoutSession: jest.fn(),
   createPortalSession: jest.fn(),
+  applySubscriptionCoupon: jest.fn(),
   handleWebhook: jest.fn(),
   getSessionStatus: jest.fn(),
   getPaymentIntentDetails: jest.fn(),
@@ -130,6 +131,35 @@ describe('Payment API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.url).toContain('billing.stripe.com');
       expect(stripeService.createPortalSession).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('POST /api/payment/subscription/coupon', () => {
+    it('respinge lipsa subscriptionId (400)', async () => {
+      const res = await request(app)
+        .post('/api/payment/subscription/coupon')
+        .send({ months: 1 });
+      expect(res.status).toBe(400);
+    });
+
+    it('respinge months invalid (400)', async () => {
+      const res = await request(app)
+        .post('/api/payment/subscription/coupon')
+        .send({ subscriptionId: 'sub_1', months: 0 });
+      expect(res.status).toBe(400);
+    });
+
+    it('aplică cuponul (200)', async () => {
+      stripeService.applySubscriptionCoupon.mockResolvedValue({
+        couponId: 'co_1',
+        subscriptionId: 'sub_1',
+      });
+      const res = await request(app)
+        .post('/api/payment/subscription/coupon')
+        .send({ subscriptionId: 'sub_1', months: 1 });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.couponId).toBe('co_1');
     });
   });
 

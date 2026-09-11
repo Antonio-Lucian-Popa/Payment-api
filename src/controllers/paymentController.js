@@ -165,6 +165,41 @@ async function createPortalSession(req, res, next) {
 }
 
 /**
+ * Aplică N luni gratis pe un abonament existent (recompensă referral/loialitate).
+ *
+ * URL: POST /api/payment/subscription/coupon
+ * Body: { subscriptionId, months, name? }
+ */
+async function applySubscriptionCoupon(req, res, next) {
+  try {
+    const { subscriptionId, months, name } = req.body;
+
+    if (!subscriptionId || typeof subscriptionId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'subscriptionId este obligatoriu',
+      });
+    }
+    if (!Number.isInteger(months) || months < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'months trebuie să fie un întreg pozitiv',
+      });
+    }
+
+    const result = await stripeService.applySubscriptionCoupon({
+      subscriptionId,
+      months,
+      name,
+    });
+
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Procesează webhook-urile Stripe
  *
  * URL: POST /api/payment/webhook
@@ -252,6 +287,7 @@ module.exports = {
   createCheckout,
   createMonthlySubscriptionCheckout,
   createPortalSession,
+  applySubscriptionCoupon,
   handleWebhook,
   getCheckoutStatus,
   healthCheck,

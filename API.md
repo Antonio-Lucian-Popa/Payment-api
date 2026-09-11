@@ -75,6 +75,7 @@ Prețurile se trimit în **cea mai mică unitate a monedei** (bani/cenți), ca *
 | `POST` | `/api/payment/checkout` | Creează sesiune de checkout (one-time sau monthly) |
 | `POST` | `/api/payment/checkout/subscription` | Creează abonament lunar |
 | `POST` | `/api/payment/portal` | Creează sesiune Customer Portal (gestionare abonament) |
+| `POST` | `/api/payment/subscription/coupon` | Aplică N luni gratis pe un abonament |
 | `POST` | `/api/payment/webhook` | Primește evenimente Stripe |
 | `GET` | `/api/payment/status/:sessionId` | Status-ul unei sesiuni |
 | `GET` | `/api/payment/health` | Health check |
@@ -188,6 +189,34 @@ consumatoare trimite `customerId`-ul Stripe (salvat la ea) și un `returnUrl`.
 ```
 
 Erori: `400` dacă lipsește `customerId` sau `returnUrl`.
+
+---
+
+### `POST /api/payment/subscription/coupon`
+
+Aplică **N luni gratis** pe un abonament existent, creând un cupon Stripe 100%
+`repeating` pe `duration_in_months` și atașându-l abonamentului. Generic —
+folosit pentru recompense de referral/loialitate din aplicațiile consumatoare.
+
+**Body**
+```json
+{
+  "subscriptionId": "sub_...",
+  "months": 1,
+  "name": "Recompensă referral"
+}
+```
+
+**Răspuns `200`**
+```json
+{
+  "success": true,
+  "couponId": "co_...",
+  "subscriptionId": "sub_..."
+}
+```
+
+Erori: `400` dacă lipsește `subscriptionId` sau `months` nu e întreg pozitiv.
 
 ---
 
