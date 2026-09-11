@@ -148,6 +148,29 @@ async function handleWebhook(rawBody, signature) {
   }
 }
 
+/**
+ * Creează o sesiune de Customer Portal Stripe, ca un client existent să-și
+ * gestioneze abonamentul (schimbă card, anulează, vede facturi). Generic:
+ * primește customerId-ul Stripe și un returnUrl de la aplicația consumatoare.
+ *
+ * @param {Object} payload
+ * @param {string} payload.customerId - ID-ul clientului Stripe (cus_...)
+ * @param {string} payload.returnUrl - unde se întoarce clientul din portal
+ * @returns {Promise} sesiunea de portal (are `.url`)
+ */
+async function createPortalSession({ customerId, returnUrl }) {
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+    return session;
+  } catch (error) {
+    console.error('Eroare la crearea sesiei de portal:', error);
+    throw error;
+  }
+}
+
 async function getSessionStatus(sessionId) {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -172,6 +195,7 @@ async function getPaymentIntentDetails(paymentIntentId) {
 
 module.exports = {
   createCheckoutSession,
+  createPortalSession,
   handleWebhook,
   getSessionStatus,
   getPaymentIntentDetails,
