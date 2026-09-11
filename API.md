@@ -74,6 +74,7 @@ Prețurile se trimit în **cea mai mică unitate a monedei** (bani/cenți), ca *
 | `GET` | `/` | Documentație & status (root, în afara prefixului `/api/payment`) |
 | `POST` | `/api/payment/checkout` | Creează sesiune de checkout (one-time sau monthly) |
 | `POST` | `/api/payment/checkout/subscription` | Creează abonament lunar |
+| `POST` | `/api/payment/portal` | Creează sesiune Customer Portal (gestionare abonament) |
 | `POST` | `/api/payment/webhook` | Primește evenimente Stripe |
 | `GET` | `/api/payment/status/:sessionId` | Status-ul unei sesiuni |
 | `GET` | `/api/payment/health` | Health check |
@@ -154,6 +155,39 @@ Identic cu `/checkout`, dar forțează `billingType = "monthly"` (mod `subscript
   "message": "Sesiune de abonament lunar creată cu succes"
 }
 ```
+
+---
+
+### `POST /api/payment/portal`
+
+Creează o sesiune de **Customer Portal** Stripe pentru un client existent, ca acesta
+să-și gestioneze abonamentul (schimbă cardul, anulează, vede facturile). Aplicația
+consumatoare trimite `customerId`-ul Stripe (salvat la ea) și un `returnUrl`.
+
+**Headers**
+
+| Header | Valoare |
+|--------|---------|
+| `Content-Type` | `application/json` |
+| `x-api-key` | API key (dacă e configurat) |
+
+**Body**
+```json
+{
+  "customerId": "cus_...",
+  "returnUrl": "https://app.ro/settings/billing"
+}
+```
+
+**Răspuns `200`**
+```json
+{
+  "success": true,
+  "url": "https://billing.stripe.com/p/session/..."
+}
+```
+
+Erori: `400` dacă lipsește `customerId` sau `returnUrl`.
 
 ---
 

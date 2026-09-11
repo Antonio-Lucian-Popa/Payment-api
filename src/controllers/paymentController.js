@@ -134,8 +134,39 @@ async function createMonthlySubscriptionCheckout(req, res, next) {
 }
 
 /**
+ * Creează o sesiune de Customer Portal pentru un client existent.
+ *
+ * URL: POST /api/payment/portal
+ * Body: { customerId, returnUrl }
+ */
+async function createPortalSession(req, res, next) {
+  try {
+    const { customerId, returnUrl } = req.body;
+
+    if (!customerId || !returnUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'customerId și returnUrl sunt obligatorii',
+      });
+    }
+
+    const session = await stripeService.createPortalSession({
+      customerId,
+      returnUrl,
+    });
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Procesează webhook-urile Stripe
- * 
+ *
  * URL: POST /api/payment/webhook
  * Header: stripe-signature
  */
@@ -220,6 +251,7 @@ function healthCheck(req, res) {
 module.exports = {
   createCheckout,
   createMonthlySubscriptionCheckout,
+  createPortalSession,
   handleWebhook,
   getCheckoutStatus,
   healthCheck,

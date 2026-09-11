@@ -36,6 +36,15 @@ router.post('/checkout', apiKeyAuth, paymentController.createCheckout);
 router.post('/checkout/subscription', apiKeyAuth, paymentController.createMonthlySubscriptionCheckout);
 
 /**
+ * POST /api/payment/portal
+ * Crează o sesiune de Customer Portal Stripe pentru un client existent,
+ * ca acesta să-și gestioneze abonamentul (card, anulare, facturi).
+ *
+ * Body: { customerId, returnUrl }
+ */
+router.post('/portal', apiKeyAuth, paymentController.createPortalSession);
+
+/**
  * POST /api/payment/webhook
  * Primește evenimentele Stripe
  * 

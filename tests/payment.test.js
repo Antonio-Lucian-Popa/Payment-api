@@ -12,6 +12,7 @@ process.env.NODE_ENV = 'test';
 // Mock complet al serviciului Stripe - nu facem apeluri de rețea reale.
 jest.mock('../src/services/stripeService', () => ({
   createCheckoutSession: jest.fn(),
+  createPortalSession: jest.fn(),
   handleWebhook: jest.fn(),
   getSessionStatus: jest.fn(),
   getPaymentIntentDetails: jest.fn(),
@@ -104,6 +105,31 @@ describe('Payment API', () => {
       expect(res.status).toBe(200);
       expect(res.body.mode).toBe('subscription');
       expect(res.body.billingType).toBe('monthly');
+    });
+  });
+
+  describe('POST /api/payment/portal', () => {
+    it('respinge request-ul fără customerId/returnUrl (400)', async () => {
+      const res = await request(app)
+        .post('/api/payment/portal')
+        .send({ returnUrl: 'https://a.com/back' });
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('creează o sesiune de portal (200) și returnează url', async () => {
+      stripeService.createPortalSession.mockResolvedValue({
+        url: 'https://billing.stripe.com/session/test',
+      });
+
+      const res = await request(app)
+        .post('/api/payment/portal')
+        .send({ customerId: 'cus_123', returnUrl: 'https://a.com/back' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.url).toContain('billing.stripe.com');
+      expect(stripeService.createPortalSession).toHaveBeenCalledTimes(1);
     });
   });
 
