@@ -13,6 +13,7 @@ process.env.NODE_ENV = 'test';
 jest.mock('../src/services/stripeService', () => ({
   createCheckoutSession: jest.fn(),
   createPortalSession: jest.fn(),
+  applySubscriptionCoupon: jest.fn(),
   handleWebhook: jest.fn(),
   getSessionStatus: jest.fn(),
   getPaymentIntentDetails: jest.fn(),
@@ -133,6 +134,46 @@ describe('Payment API', () => {
     });
   });
 
+  describe('POST /api/payment/subscription/coupon', () => {
+    it('respinge un subscriptionId invalid (400)', async () => {
+      const res = await request(app)
+        .post('/api/payment/subscription/coupon')
+        .send({ subscriptionId: 'invalid', months: 1 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('respinge un număr invalid de luni (400)', async () => {
+      const res = await request(app)
+        .post('/api/payment/subscription/coupon')
+        .send({ subscriptionId: 'sub_123', months: 0 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('aplică recompensa pe subscripție (200)', async () => {
+      stripeService.applySubscriptionCoupon.mockResolvedValue({
+        subscriptionId: 'sub_123',
+        couponId: 'coupon_123',
+      });
+
+      const res = await request(app)
+        .post('/api/payment/subscription/coupon')
+        .send({ subscriptionId: 'sub_123', months: 1, name: 'Referral' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.couponId).toBe('coupon_123');
+      expect(stripeService.applySubscriptionCoupon).toHaveBeenCalledWith({
+        subscriptionId: 'sub_123',
+        months: 1,
+        name: 'Referral',
+      });
+    });
+  });
+
   describe('POST /api/payment/webhook', () => {
     it('respinge request-ul fără header stripe-signature (400)', async () => {
       const res = await request(app)
@@ -140,6 +181,30 @@ describe('Payment API', () => {
         .set('Content-Type', 'application/json')
         .send(JSON.stringify({ type: 'checkout.session.completed' }));
       expect(res.status).toBe(400);
+    });
+
+    it('păstrează body-ul raw necesar verificării semnăturii Stripe', async () => {
+      stripeService.handleWebhook.mockResolvedValue({
+        id: 'evt_123',
+        type: 'checkout.session.completed',
+      });
+
+      const payload = JSON.stringify({
+        id: 'evt_123',
+        type: 'checkout.session.completed',
+      });
+      const res = await request(app)
+        .post('/api/payment/webhook')
+        .set('Content-Type', 'application/json')
+        .set('stripe-signature', 'test-signature')
+        .send(payload);
+
+      expect(res.status).toBe(200);
+      expect(Buffer.isBuffer(stripeService.handleWebhook.mock.calls[0][0])).toBe(true);
+      expect(stripeService.handleWebhook).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'test-signature',
+      );
     });
   });
 

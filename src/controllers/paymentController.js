@@ -165,6 +165,47 @@ async function createPortalSession(req, res, next) {
 }
 
 /**
+ * Aplică un discount de 100% pentru N luni unei subscripții Stripe.
+ *
+ * URL: POST /api/payment/subscription/coupon
+ * Body: { subscriptionId, months, name? }
+ */
+async function applySubscriptionCoupon(req, res, next) {
+  try {
+    const { subscriptionId, months, name } = req.body;
+
+    if (typeof subscriptionId !== 'string' || !subscriptionId.startsWith('sub_')) {
+      return res.status(400).json({
+        success: false,
+        error: 'subscriptionId Stripe valid este obligatoriu',
+      });
+    }
+
+    if (!Number.isInteger(months) || months < 1 || months > 120) {
+      return res.status(400).json({
+        success: false,
+        error: 'months trebuie să fie un număr întreg între 1 și 120',
+      });
+    }
+
+    const result = await stripeService.applySubscriptionCoupon({
+      subscriptionId,
+      months,
+      name,
+    });
+
+    return res.status(200).json({
+      success: true,
+      subscriptionId: result.subscriptionId,
+      couponId: result.couponId,
+      months,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Procesează webhook-urile Stripe
  *
  * URL: POST /api/payment/webhook
@@ -252,6 +293,7 @@ module.exports = {
   createCheckout,
   createMonthlySubscriptionCheckout,
   createPortalSession,
+  applySubscriptionCoupon,
   handleWebhook,
   getCheckoutStatus,
   healthCheck,

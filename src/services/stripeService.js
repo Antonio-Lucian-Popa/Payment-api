@@ -171,6 +171,33 @@ async function createPortalSession({ customerId, returnUrl }) {
   }
 }
 
+/**
+ * Creează un cupon 100% cu durată limitată și îl aplică subscripției.
+ * Contract folosit de Dentara pentru lunile gratuite din referral-uri.
+ */
+async function applySubscriptionCoupon({ subscriptionId, months, name }) {
+  try {
+    const coupon = await stripe.coupons.create({
+      percent_off: 100,
+      duration: 'repeating',
+      duration_in_months: months,
+      name: name || `Discount 100% (${months} luni)`,
+    });
+
+    await stripe.subscriptions.update(subscriptionId, {
+      coupon: coupon.id,
+    });
+
+    return {
+      subscriptionId,
+      couponId: coupon.id,
+    };
+  } catch (error) {
+    console.error('Eroare la aplicarea cuponului pe subscripție:', error);
+    throw error;
+  }
+}
+
 async function getSessionStatus(sessionId) {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -196,6 +223,7 @@ async function getPaymentIntentDetails(paymentIntentId) {
 module.exports = {
   createCheckoutSession,
   createPortalSession,
+  applySubscriptionCoupon,
   handleWebhook,
   getSessionStatus,
   getPaymentIntentDetails,

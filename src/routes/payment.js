@@ -45,6 +45,15 @@ router.post('/checkout/subscription', apiKeyAuth, paymentController.createMonthl
 router.post('/portal', apiKeyAuth, paymentController.createPortalSession);
 
 /**
+ * POST /api/payment/subscription/coupon
+ * Aplică un cupon 100% pentru un număr limitat de luni unei subscripții.
+ * Folosit de aplicațiile consumatoare pentru recompense/referral-uri.
+ *
+ * Body: { subscriptionId, months, name? }
+ */
+router.post('/subscription/coupon', apiKeyAuth, paymentController.applySubscriptionCoupon);
+
+/**
  * POST /api/payment/webhook
  * Primește evenimentele Stripe
  * 
