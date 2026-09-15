@@ -488,3 +488,71 @@ stripe listen --forward-to localhost:3000/api/payment/webhook
 ```
 
 > Payment API este **generic și fără stare** — nu stochează comenzi. Logica de business (DB, email, facturi) rămâne în aplicația ta, declanșată de webhook.
+# API multi-provider (v1)
+
+Noile aplicații trebuie să folosească acest contract. Endpoint-urile Stripe
+vechi descrise mai jos rămân disponibile pentru compatibilitate.
+
+## Furnizori
+
+`GET /api/payment/v1/providers` întoarce lista furnizorilor disponibili:
+`stripe`, `euplatesc`, `netopia`, `saferpay`.
+
+## Checkout
+
+`POST /api/payment/v1/checkouts` (protejat cu `x-api-key`):
+
+```json
+{
+  "provider": "stripe",
+  "reference": "ORDER-123",
+  "items": [{ "name": "Cazare", "price": 12500, "currency": "RON", "quantity": 1 }],
+  "customer": { "firstName": "Ana", "lastName": "Pop", "email": "ana@example.com" },
+  "successUrl": "https://app.example/success",
+  "cancelUrl": "https://app.example/cancel",
+  "callbackUrl": "https://api.example/payment-events",
+  "metadata": { "reservationId": "internal-id" },
+  "testMode": true,
+  "credentials": { "secretKey": "...", "webhookSecret": "..." }
+}
+```
+
+`price` este întotdeauna în unitatea monetară minimă. Răspunsul comun conține
+`provider`, `paymentRef`, `checkoutUrl` și `status`.
+
+Credențiale necesare:
+
+- Stripe: `secretKey`, `webhookSecret`.
+- EuPlătesc: `merchantId`, `secretKey`; opțional `userKey`, `userApi`.
+- NETOPIA: `apiKey`, `posSignature`; opțional `publicKey` pentru IPN.
+- Saferpay: `customerId`, `terminalId`, `apiUser`, `apiPassword`.
+
+Credențialele sunt utilizate numai în memoria request-ului. Pentru callback se
+generează o stare AES-256-GCM cu expirare, folosind `PAYMENT_STATE_SECRET`.
+În producție, restrânge destinațiile dinamice prin
+`WEBHOOK_FORWARD_ALLOWED_HOSTS` (listă `host:port` separată prin virgulă).
+
+## Status
+
+`POST /api/payment/v1/status` primește `provider`, `paymentRef`, `credentials`
+și `testMode` și întoarce starea normalizată: `pending`, `paid`, `failed` sau
+`refunded`.
+
+## Eveniment către aplicația consumatoare
+
+Gateway-ul trimite la `callbackUrl`:
+
+```json
+{
+  "id": "event-id",
+  "type": "payment.paid",
+  "provider": "netopia",
+  "reference": "ORDER-123",
+  "paymentRef": "provider-reference",
+  "status": "paid",
+  "metadata": { "reservationId": "internal-id" }
+}
+```
+
+Body-ul exact este semnat HMAC-SHA256 în header-ul
+`x-payment-signature: sha256=<hex>`, cu `WEBHOOK_FORWARD_SECRET`.

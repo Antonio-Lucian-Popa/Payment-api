@@ -1,13 +1,18 @@
 # PAYMENT-API - Generic Payment Microservice
 
-Backend API generic pentru procesarea plăților online utilizând Stripe Checkout. Poate fi integrat în orice aplicație.
+Gateway API generic pentru procesarea plăților online prin Stripe Checkout,
+EuPlătesc, NETOPIA Payments v2 și Saferpay Payment Page. Poate fi reutilizat de
+mai multe aplicații și conturi de comerciant, fără să stocheze credențialele.
 
 > 📘 **Integrare & referință API completă:** vezi [`API.md`](./API.md) — toate endpoint-urile, autentificarea prin `x-api-key`, erorile și exemple de integrare frontend (vanilla JS, React, curl).
 
 ## 🎯 Caracteristici
 
 - ✅ API generic refolosibil
-- ✅ Integrare Stripe Checkout
+- ✅ Contract unic pentru Stripe, EuPlătesc, NETOPIA v2 și Saferpay
+- ✅ Stripe Checkout și Saferpay Payment Page găzduite (fără date de card în aplicație)
+- ✅ NETOPIA v2 și EuPlătesc prin SDK-urile server-side
+- ✅ Callback-uri normalizate, semnate HMAC, către aplicațiile consumatoare
 - ✅ Procesare de comenzi cu multiple produse
 - ✅ Suport pentru abonamente lunare prin Stripe Checkout
 - ✅ Webhook handling pentru confirmări

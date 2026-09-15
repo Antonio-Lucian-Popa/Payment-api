@@ -59,6 +59,11 @@ function errorHandler(err, req, res, next) {
     message = 'Resursa nu a fost găsită';
     errorType = 'NOT_FOUND';
   }
+  else if (err.statusCode >= 400 && err.statusCode < 600) {
+    statusCode = err.statusCode;
+    message = err.message;
+    errorType = 'PROVIDER_ERROR';
+  }
 
   // Trimite răspunsul cu eroarea
   res.status(statusCode).json({

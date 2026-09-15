@@ -7,6 +7,7 @@
 
 const express = require('express');
 const paymentController = require('../controllers/paymentController');
+const gatewayController = require('../controllers/gatewayController');
 const apiKeyAuth = require('../middleware/apiKey');
 
 // Creează router-ul Express
@@ -92,6 +93,12 @@ router.get('/status/:sessionId', apiKeyAuth, paymentController.getCheckoutStatus
  * Util pentru monitoring și health checks
  */
 router.get('/health', paymentController.healthCheck);
+
+// Contract provider-agnostic. Endpoint-urile vechi Stripe rămân compatibile.
+router.get('/v1/providers', gatewayController.providersList);
+router.post('/v1/checkouts', apiKeyAuth, gatewayController.createCheckout);
+router.post('/v1/status', apiKeyAuth, gatewayController.status);
+router.post('/webhook/:provider', gatewayController.webhook);
 
 // Exportă router-ul pentru a fi folosit în aplicația principală
 module.exports = router;

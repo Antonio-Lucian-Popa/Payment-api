@@ -74,7 +74,7 @@ app.use(cors({
   },
   credentials: true, // Permite cookies și headers de autentificare
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'stripe-signature'],
+  allowedHeaders: ['Content-Type', 'stripe-signature', 'x-api-key'],
 }));
 
 // ==================== LOGGING ====================

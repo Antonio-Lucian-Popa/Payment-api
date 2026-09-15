@@ -149,9 +149,24 @@ function forwardEvent(event) {
   }
 }
 
+function forwardNormalizedEvent(event, callbackUrl) {
+  const urls = callbackUrl ? [callbackUrl] : getUrls();
+  if (!urls.length) return;
+  const body = JSON.stringify(event);
+  const signature = sign(body);
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-payment-event': event.type,
+    'x-payment-event-id': event.id,
+    ...(signature ? { 'x-payment-signature': signature } : {}),
+  };
+  for (const url of urls) postWithRetry(url, body, headers).catch(() => {});
+}
+
 module.exports = {
   isEnabled,
   shouldForward,
   sign,
   forwardEvent,
+  forwardNormalizedEvent,
 };
