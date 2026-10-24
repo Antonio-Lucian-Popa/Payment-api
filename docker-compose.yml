@@ -1,37 +1,29 @@
 services:
   payment-api:
-    # Construiește imaginea local din Dockerfile-ul proiectului
     build:
       context: .
       dockerfile: Dockerfile
 
-    # Nume de container configurabil (evită coliziuni când rulezi mai multe instanțe).
-    # Suprascrie cu COMPOSE_PROJECT_NAME sau schimbă aici după nevoie.
-    container_name: ${CONTAINER_NAME:-payment-api}
-
-    # Pornește containerul automat după restart de server sau crash
+    image: laradu-payment:latest
+    container_name: laradu_payment
     restart: unless-stopped
 
-    # Încarcă secretele și variabilele de configurare din fișierul .env
+    # Secretele (chei Stripe, secrete partajate) vin din .env — NU în git.
     env_file:
       - .env
 
-    # Suprascriem explicit valorile importante pentru production
     environment:
       NODE_ENV: production
       PORT: 3000
 
-    # Accesibil doar containerelor din rețelele Docker. Nginx publică webhook-ul,
-    # iar aplicațiile consumatoare îl apelează prin numele `payment-api`.
+    # Intern în rețeaua Docker. Webhook-ul Stripe este expus public de nginx-ul
+    # edge la /payments/, iar shop-api îl apelează prin numele `laradu_payment`.
     expose:
       - "3000"
 
-    # Rețeaua serviciului
     networks:
-      - payment-net
-      - nova-net
+      - laradu-net
 
-    # Health check pe endpoint-ul intern al API-ului
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/payment/health').then((res) => { process.exit(res.ok ? 0 : 1); }).catch(() => process.exit(1));"]
       interval: 30s
@@ -40,7 +32,5 @@ services:
       start_period: 15s
 
 networks:
-  payment-net:
-    driver: bridge
-  nova-net:
+  laradu-net:
     external: true
