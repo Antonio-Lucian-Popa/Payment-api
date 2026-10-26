@@ -54,7 +54,8 @@ payment-api/
 
 1. **Clonează proiectul:**
 ```bash
-cd /home/user/Desktop/workspace/payment-api
+git clone <repository-url> payment-api
+cd payment-api
 npm install
 ```
 
