@@ -45,6 +45,7 @@ async function createCheckoutSession({
   clientId = null,
   billingType = 'one_time',
   customerEmail = null,
+  expiresAt = null,
 }) {
   try {
     const lineItems = buildLineItems(items, billingType);
@@ -57,6 +58,8 @@ async function createCheckoutSession({
       success_url: successUrl,
       cancel_url: cancelUrl,
       customer_email: customerEmail || undefined,
+      // Expirare sesiune (secunde Unix). Stripe acceptă 30 min – 24h în viitor.
+      expires_at: expiresAt || undefined,
       metadata: {
         clientId: clientId || 'unknown',
         billingType,

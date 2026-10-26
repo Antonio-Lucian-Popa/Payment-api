@@ -156,9 +156,14 @@ Creeaza o sesiune de checkout Stripe.
   "successUrl": "https://your-app.com/success",
   "cancelUrl": "https://your-app.com/cancel",
   "clientId": "unique-client-identifier",
-  "billingType": "one_time"
+  "billingType": "one_time",
+  "expiresAt": 1735689600
 }
 ```
+
+> `expiresAt` (opțional) — timestamp Unix (secunde) la care expiră sesiunea de
+> checkout. Stripe acceptă între 30 min și 24h în viitor. Util pentru a elibera
+> stocul rezervat dacă plata nu e finalizată la timp.
 
 **Response:**
 ```json
