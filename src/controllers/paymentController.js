@@ -64,7 +64,7 @@ async function buildCheckoutResponse(res, payload) {
  */
 async function createCheckout(req, res, next) {
   try {
-    const { items, successUrl, cancelUrl, clientId, billingType = 'one_time', customerEmail } = req.body;
+    const { items, successUrl, cancelUrl, clientId, billingType = 'one_time', customerEmail, expiresAt } = req.body;
 
     const validationError = validateCheckoutRequest({
       items,
@@ -81,6 +81,13 @@ async function createCheckout(req, res, next) {
       });
     }
 
+    if (expiresAt !== undefined && (!Number.isInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000))) {
+      return res.status(400).json({
+        success: false,
+        error: 'expiresAt trebuie să fie un timestamp Unix (secunde) în viitor',
+      });
+    }
+
     return await buildCheckoutResponse(res, {
       items,
       successUrl,
@@ -88,6 +95,7 @@ async function createCheckout(req, res, next) {
       clientId,
       billingType,
       customerEmail,
+      expiresAt,
     });
   } catch (error) {
     next(error);

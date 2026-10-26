@@ -86,6 +86,38 @@ describe('Payment API', () => {
       expect(res.body.checkoutUrl).toContain('checkout.stripe.com');
       expect(stripeService.createCheckoutSession).toHaveBeenCalledTimes(1);
     });
+
+    it('respinge expiresAt care nu e un timestamp viitor (400)', async () => {
+      const res = await request(app)
+        .post('/api/payment/checkout')
+        .send({
+          items: [{ name: 'Produs', currency: 'ron', price: 1000, quantity: 1 }],
+          successUrl: 'https://a.com/ok',
+          cancelUrl: 'https://a.com/no',
+          expiresAt: 100,
+        });
+      expect(res.status).toBe(400);
+    });
+
+    it('transmite expiresAt valid către serviciul Stripe', async () => {
+      stripeService.createCheckoutSession.mockResolvedValue({
+        id: 'cs_test_exp',
+        url: 'https://checkout.stripe.com/pay/cs_test_exp',
+      });
+      const future = Math.floor(Date.now() / 1000) + 1800;
+      const res = await request(app)
+        .post('/api/payment/checkout')
+        .send({
+          items: [{ name: 'Produs', currency: 'ron', price: 1000, quantity: 1 }],
+          successUrl: 'https://a.com/ok',
+          cancelUrl: 'https://a.com/no',
+          expiresAt: future,
+        });
+      expect(res.status).toBe(200);
+      expect(stripeService.createCheckoutSession).toHaveBeenCalledWith(
+        expect.objectContaining({ expiresAt: future }),
+      );
+    });
   });
 
   describe('POST /api/payment/checkout/subscription', () => {
